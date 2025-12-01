@@ -9,6 +9,7 @@ It automatically detects the programming language, applies a "Dracula" dark them
 ## ✨ Features
 
 * **Syntax Highlighting:** Automatically detects languages (Go, Python, JSON, etc.) and applies colorful syntax highlighting.
+* **Clipboard:** `--copy` flag to copy the snippet directly to the clipboard for easy sharing.
 * **Window Controls:** Renders a clean "window" interface with traffic light buttons.
 * **Line Extraction:** Extract and render only specific lines from a large file.
 * **Smart Input:** Accepts file paths arguments OR piped input from stdin.
@@ -34,6 +35,8 @@ It automatically detects the programming language, applies a "Dracula" dark them
 Render an entire file to an image:
 ```bash
 code-snippet main.go
+
+code-snippet main.go --copy
 
 code-snippet main.go -l 10-20
 

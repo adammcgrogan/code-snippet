@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"bytes"
 	"embed"
 	"fmt"
 	"image/color"
@@ -15,16 +16,24 @@ import (
 	"github.com/alecthomas/chroma/v2/styles"
 	"github.com/fogleman/gg"
 	"github.com/spf13/cobra"
+	"golang.design/x/clipboard"
 )
 
 //go:embed fonts/font.ttf
 var fontFS embed.FS
 
+// CLI Flags
 var lineRange string
+var copyToClipboard bool
 
+// rootCmd defines the primary CLI command application.
+// It handles argument parsing, input validation, and triggers the rendering pipeline.
 var rootCmd = &cobra.Command{
-	Use:   "code-snippet (file) [lines]",
+	Use:   "code-snippet [file]",
 	Short: "Turn code into a beautiful image",
+	Example: `  code-snippet main.go
+  code-snippet main.go -l 10-20
+  code-snippet main.go --copy`,
 	Run: func(cmd *cobra.Command, args []string) {
 		code, filename := readInput(args)
 
@@ -33,7 +42,16 @@ var rootCmd = &cobra.Command{
 			return
 		}
 
+		// Initialize clipboard access if the flag is set.
+		// This requires OS-level access and may fail on headless environments.
+		if copyToClipboard {
+			if err := clipboard.Init(); err != nil {
+				fmt.Printf("⚠️  Warning: Failed to initialize clipboard: %v\n", err)
+			}
+		}
+
 		// Process the --lines flag if provided.
+		// This extracts the specific subset of code requested by the user.
 		if lineRange != "" {
 			var err error
 			code, err = extractLines(code, lineRange)
@@ -50,12 +68,19 @@ var rootCmd = &cobra.Command{
 			fmt.Printf("Error: %v\n", err)
 			os.Exit(1)
 		}
-		fmt.Println("✅ Saved to snippet.png")
+
+		// Final output message depends on flags
+		if copyToClipboard {
+			fmt.Println("✅ Saved to snippet.png AND copied to clipboard!")
+		} else {
+			fmt.Println("✅ Saved to snippet.png")
+		}
 	},
 }
 
 func init() {
 	rootCmd.Flags().StringVarP(&lineRange, "lines", "l", "", "Line range to render (e.g. 10-20)")
+	rootCmd.Flags().BoolVarP(&copyToClipboard, "copy", "c", false, "Copy image to system clipboard")
 }
 
 func Execute() {
@@ -65,7 +90,9 @@ func Execute() {
 	}
 }
 
-// extractLines parses the line range string and returns a subset of the code string
+// extractLines parses the line range string (e.g., "10-20") and returns
+// a subset of the code string. It handles bounds checking to ensure
+// the range is valid within the file.
 func extractLines(code string, rangeStr string) (string, error) {
 	lines := strings.Split(code, "\n")
 	totalLines := len(lines)
@@ -98,14 +125,17 @@ func extractLines(code string, rangeStr string) (string, error) {
 }
 
 // generateImage handles the core rendering logic.
-// It performs syntax highlighting using Chroma, creates an image context using gg, calculates dynamic sizing based on text content, and saves the final PNG.
+// It performs syntax highlighting using Chroma, creates an image context using gg,
+// calculates dynamic sizing based on text content, and saves the final PNG.
 func generateImage(code, filename string) error {
+	// Pre-process code string to replace tabs with spaces for consistent rendering.
 	code = strings.ReplaceAll(code, "\t", "    ")
 	const fontSize = 24.0
 	const lineSpacing = 1.5
 	const padding = 40.0
 
-	// Determine the language syntax based on filename or content analysis.
+	// Determine the Lexer (language syntax) based on filename or content analysis.
+	// Defaults to Go if detection fails.
 	var lexer chroma.Lexer
 	if filename != "Stdin" {
 		lexer = lexers.Match(filename)
@@ -135,6 +165,7 @@ func generateImage(code, filename string) error {
 	defer os.Remove(tempFont.Name())
 
 	// Perform a "Dry Run" to calculate the required image dimensions.
+	// We iterate through lines to find the maximum width and total height.
 	dummyDc := gg.NewContext(1, 1)
 	dummyDc.LoadFontFace(tempFont.Name(), fontSize)
 
@@ -186,10 +217,23 @@ func generateImage(code, filename string) error {
 		x += w
 	}
 
+	// Logic for Clipboard vs Disk
+	if copyToClipboard {
+		// Encode the image to a memory buffer (RAM) instead of disk
+		var buf bytes.Buffer
+		if err := dc.EncodePNG(&buf); err != nil {
+			return err
+		}
+		// Write the buffer bytes to the OS Clipboard
+		clipboard.Write(clipboard.FmtImage, buf.Bytes())
+	}
+
+	// We always save the file as a backup
 	return dc.SavePNG("snippet.png")
 }
 
-// drawWindowControls renders the macOS-style window buttons
+// drawWindowControls renders the macOS-style window buttons (Red, Yellow, Green)
+// in the top-left corner of the image context.
 func drawWindowControls(dc *gg.Context) {
 	dc.SetHexColor("#ff5f56")
 	dc.DrawCircle(30, 30, 8)
@@ -203,6 +247,7 @@ func drawWindowControls(dc *gg.Context) {
 }
 
 // readInput determines the source of the code.
+// It checks if a file argument was provided, otherwise it attempts to read from Stdin (pipes).
 func readInput(args []string) (string, string) {
 	if len(args) > 0 {
 		content, err := os.ReadFile(args[0])
