@@ -16,18 +16,30 @@ It automatically detects the programming language, applies a "Dracula" dark them
 
 ## 📦 Installation
 
-**Prerequisites:** Go 1.21+
+### Option 1: Go Install (Recommended)
+The easiest way to install if you have Go set up: 
+```
+go install [github.com/adammcgrogan/code-snippet@latest](https://github.com/adammcgrogan/code-snippet@latest)
+```
 
-1.  **Clone the repository:**
-    ```bash
-    git clone [https://github.com/adammcgrogan/code-snippet.git](https://github.com/adammcgrogan/code-snippet.git)
-    cd code-snippet
-    ```
+### Option 2: Manual Installation
+You can build the binary and move it to your system path manually.
+```
+# Mac / Linux:
+# 1. Build the binary
+go build -o code-snippet main.go
 
-2.  **Build the binary:**
-    ```bash
-    go build -o code-snippet main.go
-    ```
+# 2. Move it to your bin folder (requires password)
+sudo mv code-snippet /usr/local/bin/
+
+# Windows (PowerShell):
+# 1. Build the binary
+go build -o code-snippet.exe main.go
+
+# 2. Create a bin folder if it doesn't exist (optional) or use C:\Windows
+# Run this in an Administrator Terminal:
+copy code-snippet.exe C:\Windows\
+```
 
 ## 🚀 Usage
 
