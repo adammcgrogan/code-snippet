@@ -32,13 +32,16 @@ It automatically detects the programming language, applies a "Dracula" dark them
 ## 🚀 Usage
 
 ### Basic Usage
-Render an entire file to an image:
 ```bash
+# Entire file
 code-snippet main.go
 
+# Entire file & copy to clipboard
 code-snippet main.go --copy
 
+# Lines 10-20
 code-snippet main.go -l 10-20
 
+# Piped in input
 echo 'fmt.Println("Hello World")' | code-snippet
 ```
